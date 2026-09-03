@@ -1,0 +1,21 @@
+Package: iopolicy
+Type: Package
+Title: Shared Infrastructure for Industrial-Organization Policy Models
+Version: 0.0.0.9000
+Authors@R: person("Charles", "Taragin", role = c("aut", "cre"),
+    email = "ctaragin+antitrustr@gmail.com")
+Author: Charles Taragin [aut, cre]
+Maintainer: Charles Taragin <ctaragin+antitrustr@gmail.com>
+Description: Model-independent infrastructure for designing, testing, and
+    stress-testing industrial-organization policy models. The first feature
+    is reproducible synthetic market generation; economic demand, conduct,
+    calibration, and equilibrium implementations remain in their respective
+    economic packages.
+License: file LICENSE
+Encoding: UTF-8
+Imports: stats
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+Config/testthat/edition: 3
+NeedsCompilation: no
+URL: https://github.com/luciu5/iopolicy
+Config/roxygen2/version: 8.0.0

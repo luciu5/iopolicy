@@ -2,14 +2,18 @@
 
 ## Source branch verification
 
-The implementation was designed against the current checked-out refactor
+The implementation was designed against the most recent checked-out refactor
 branches:
 
-* `luciu5/trade/refactor` is `eda4669f81d685c188f344407c99625b03b543d8`.
-* `luciu5/antitrust/refactor` has advanced to `32ca0c2bb4a36a65c7060599a6ff8e85127356f5` and contains the requested `33af668d4407e3caf9320e28bb38ac65a21432b8` as an ancestor.
-* Neither current `master` branch contains the requested antitrust refactor
-  commit, so the current antitrust refactor branch is the architectural
-  source of truth. The master branches were inspected only as legacy
+* `luciu5/trade/refactor` is `d62bf03f8ccf8b2a23c4dc0d72775b00a70b8a4b` and
+  contains the requested `eda4669f81d685c188f344407c99625b03b543d8` as an
+  ancestor.
+* `luciu5/antitrust/refactor` is
+  `5903d50906017d87a8edff7a358ac4e582dddbb5` and contains the requested
+  `33af668d4407e3caf9320e28bb38ac65a21432b8` as an ancestor.
+* The current `master` branches do not contain their corresponding requested
+  refactor commits, so the `refactor` branches are the architectural source
+  of truth. The master branches were inspected only as legacy
   behavioral/economic oracles.
 
 ## Dependency direction

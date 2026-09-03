@@ -45,49 +45,16 @@
   list(had_seed = had_seed, old_seed = old_seed, seed = actual_seed)
 }
 
-.iopolicy_weight_list <- function(products_per_firm, within_firm_weights) {
-  n_firms <- length(products_per_firm)
-  n_inside <- sum(products_per_firm)
-  if (is.null(within_firm_weights)) {
-    return(lapply(products_per_firm, function(n) rep(1 / n, n)))
-  }
-
-  if (is.list(within_firm_weights)) {
-    if (length(within_firm_weights) != n_firms) {
-      stop("'within_firm_weights' list must have one element per inside firm")
-    }
-    weights <- within_firm_weights
-  } else if (is.numeric(within_firm_weights) &&
-             length(within_firm_weights) == n_inside) {
-    cuts <- cumsum(products_per_firm)
-    starts <- c(1L, cuts[seq_len(length(cuts) - 1L)] + 1L)
-    weights <- Map(function(start, end) within_firm_weights[start:end],
-                   starts, cuts)
-  } else {
-    stop("'within_firm_weights' must be a list per firm or a vector over inside products")
-  }
-
-  for (f in seq_len(n_firms)) {
-    w <- weights[[f]]
-    if (!is.numeric(w) || length(w) != products_per_firm[f] ||
-        any(!is.finite(w)) || any(w <= 0)) {
-      stop("within-firm product weights must be finite and strictly positive with the requested lengths")
-    }
-    weights[[f]] <- unname(w / sum(w))
-  }
-  weights
-}
-
-.iopolicy_price_vector <- function(n_products, n_inside, prices, price_rule,
+.iopolicy_price_vector <- function(n_total_products, n_inside, prices, price_rule,
                                    price_level, price_range, reference_price) {
   if (!is.null(prices)) {
     if (!is.numeric(prices) || !all(is.finite(prices)) || any(prices <= 0) ||
-        !length(prices) %in% c(n_inside, n_products)) {
+        !length(prices) %in% c(n_inside, n_total_products)) {
       stop("'prices' must be a finite, strictly positive vector of inside or all-product length")
     }
-    if (length(prices) == n_products) {
+    if (length(prices) == n_total_products) {
       if (!is.null(reference_price) &&
-          !isTRUE(all.equal(prices[n_products], reference_price))) {
+          !isTRUE(all.equal(prices[n_total_products], reference_price))) {
         stop("'reference_price' conflicts with the supplied all-product 'prices'")
       }
       return(list(values = unname(prices), rule = "user-supplied"))
@@ -103,14 +70,14 @@
   if (price_rule == "common") {
     .iopolicy_assert_scalar(price_level, "price_level")
     if (price_level <= 0) stop("'price_level' must be strictly positive")
-    return(list(values = rep(price_level, n_products), rule = "common"))
+    return(list(values = rep(price_level, n_total_products), rule = "common"))
   }
   if (!is.numeric(price_range) || length(price_range) != 2L ||
       any(!is.finite(price_range)) || any(price_range <= 0) ||
       price_range[1] >= price_range[2]) {
     stop("'price_range' must contain two finite positive values in increasing order")
   }
-  list(values = runif(n_products, min = price_range[1], max = price_range[2]),
+  list(values = runif(n_total_products, min = price_range[1], max = price_range[2]),
        rule = "uniform")
 }
 
@@ -135,14 +102,19 @@
 #' `n_firms` counts inside firms. The active reference product is an additional
 #' one-product firm and is included in the ownership matrix.
 #'
+#' All inside firms have the same number of products, controlled by
+#' `n_products`. The Dirichlet draw is at the product level, so the vector
+#' `dirichlet_alpha` has one element for each inside product. Firm shares are
+#' the sums of their product shares; there is no equal-within-firm allocation
+#' step.
+#'
 #' @param mode Either `"observed"` or `"primitives"`.
 #' @param n_firms Number of inside firms; the reference firm is additional.
-#' @param dirichlet_alpha A positive finite vector of length `n_firms`.
+#' @param n_products Number of products owned by each inside firm. Defaults to
+#'   one.
+#' @param dirichlet_alpha A positive finite vector of length
+#'   `n_firms * n_products`.
 #' @param outside_beta A positive finite length-two vector of Beta shapes.
-#' @param products_per_firm A positive scalar recycled across firms or a
-#'   positive vector of length `n_firms`.
-#' @param within_firm_weights A list with one positive vector per firm, or a
-#'   positive vector over all inside products. Defaults to equal allocation.
 #' @param prices Optional positive prices for inside products or all products.
 #' @param reference_price Price appended when only inside prices are supplied.
 #' @param price_rule Either `"common"` or `"uniform"` when prices are not
@@ -164,10 +136,9 @@
 fake_market <- function(
     mode = "observed",
     n_firms = 3L,
-    dirichlet_alpha = rep(1, n_firms),
+    n_products = 1L,
+    dirichlet_alpha = rep(1, n_firms * n_products),
     outside_beta = c(2, 8),
-    products_per_firm = 1L,
-    within_firm_weights = NULL,
     prices = NULL,
     reference_price = NULL,
     price_rule = c("common", "uniform"),
@@ -189,25 +160,24 @@ fake_market <- function(
   .iopolicy_assert_scalar(n_firms, "n_firms", integer = TRUE)
   n_firms <- as.integer(n_firms)
   if (n_firms < 1L) stop("'n_firms' must be at least one")
-  .iopolicy_validate_positive_vector(dirichlet_alpha, "dirichlet_alpha", n_firms)
+  n_products <- as.numeric(n_products)
+  .iopolicy_assert_scalar(n_products, "n_products", integer = TRUE)
+  n_products <- as.integer(n_products)
+  if (n_products < 1L) stop("'n_products' must be at least one")
+  if (n_firms > (2147483647 - 1) / n_products) {
+    stop("'n_firms' * 'n_products' is too large")
+  }
+  n_inside <- as.integer(n_firms * n_products)
+  n_total_products <- n_inside + 1L
+  .iopolicy_validate_positive_vector(
+    dirichlet_alpha, "dirichlet_alpha", n_inside
+  )
   .iopolicy_validate_positive_vector(outside_beta, "outside_beta", 2L)
   if (!is.numeric(markup_range) || length(markup_range) != 2L ||
       any(!is.finite(markup_range)) || markup_range[1] < 0 ||
       markup_range[1] >= markup_range[2]) {
     stop("'markup_range' must contain two finite values with 0 <= lower < upper")
   }
-
-  products_per_firm <- as.numeric(products_per_firm)
-  if (length(products_per_firm) == 1L) products_per_firm <- rep(products_per_firm, n_firms)
-  if (length(products_per_firm) != n_firms ||
-      any(!is.finite(products_per_firm)) || any(products_per_firm < 1) ||
-      any(products_per_firm != as.integer(products_per_firm))) {
-    stop("'products_per_firm' must be a positive integer scalar or vector of length n_firms")
-  }
-  products_per_firm <- as.integer(products_per_firm)
-  weights <- .iopolicy_weight_list(products_per_firm, within_firm_weights)
-  n_inside <- sum(products_per_firm)
-  n_products <- n_inside + 1L
 
   if (!is.list(parameters)) stop("'parameters' must be a list")
   if (!is.null(alpha)) {
@@ -240,15 +210,20 @@ fake_market <- function(
   rng <- .iopolicy_begin_rng(seed)
   on.exit(.iopolicy_restore_rng(rng$had_seed, rng$old_seed), add = TRUE)
 
-  relative_firm_shares <- rgamma(n_firms, shape = dirichlet_alpha, rate = 1)
-  relative_firm_shares <- relative_firm_shares / sum(relative_firm_shares)
+  relative_product_shares <- rgamma(n_inside, shape = dirichlet_alpha, rate = 1)
+  relative_product_shares <- relative_product_shares / sum(relative_product_shares)
   outside_share <- rbeta(1L, shape1 = outside_beta[1], shape2 = outside_beta[2])
-  firm_shares <- (1 - outside_share) * relative_firm_shares
-  product_shares <- unlist(Map(`*`, firm_shares, weights), use.names = FALSE)
-  product_shares <- c(product_shares, outside_share)
+  product_shares_inside <- (1 - outside_share) * relative_product_shares
+  inside_firm_id <- rep(seq_len(n_firms), each = n_products)
+  firm_shares <- vapply(
+    seq_len(n_firms),
+    function(firm) sum(product_shares_inside[inside_firm_id == firm]),
+    numeric(1)
+  )
+  product_shares <- c(product_shares_inside, outside_share)
 
   price_info <- .iopolicy_price_vector(
-    n_products, n_inside, prices, price_rule, price_level, price_range,
+    n_total_products, n_inside, prices, price_rule, price_level, price_range,
     reference_price
   )
   price_values <- price_info$values
@@ -270,12 +245,11 @@ fake_market <- function(
     unname(observed_markup)
   }
 
-  firm_id <- c(rep(seq_len(n_firms), products_per_firm), n_firms + 1L)
-  product_id <- seq_len(n_products)
-  reference_product <- n_products
+  firm_id <- c(inside_firm_id, n_firms + 1L)
+  product_id <- seq_len(n_total_products)
+  reference_product <- n_total_products
   firm_share_by_product <- c(
-    unlist(Map(function(s, w) rep(s, length(w)), firm_shares, weights),
-            use.names = FALSE),
+    rep(firm_shares, each = n_products),
     outside_share
   )
   reference_firm <- n_firms + 1L
@@ -288,8 +262,8 @@ fake_market <- function(
     firm_share = unname(firm_share_by_product),
     product_share = unname(product_shares),
     price = unname(price_values),
-    cost = rep(NA_real_, n_products),
-    markup = rep(NA_real_, n_products),
+    cost = rep(NA_real_, n_total_products),
+    markup = rep(NA_real_, n_total_products),
     observed_markup = c(rep(NA_real_, n_inside), observed_markup_product),
     reference_product = product_id == reference_product,
     stringsAsFactors = FALSE
@@ -298,7 +272,7 @@ fake_market <- function(
     firm_id = seq_len(reference_firm),
     reference_firm = seq_len(reference_firm) == reference_firm,
     firm_share = c(firm_shares, outside_share),
-    n_products = c(products_per_firm, 1L),
+    n_products = c(rep(n_products, n_firms), 1L),
     stringsAsFactors = FALSE
   )
 
@@ -308,18 +282,14 @@ fake_market <- function(
     n_firms = n_firms,
     n_inside_products = n_inside,
     n_products = n_products,
+    n_total_products = n_total_products,
     reference_product = reference_product,
     reference_firm = reference_firm,
     dirichlet_alpha = unname(dirichlet_alpha),
     outside_beta = unname(outside_beta),
     outside_share = unname(outside_share),
-    relative_firm_shares = unname(relative_firm_shares),
+    relative_product_shares = unname(relative_product_shares),
     firm_shares = unname(firm_shares),
-    products_per_firm = unname(products_per_firm),
-    within_firm_allocation = if (all(vapply(weights, function(w) {
-      isTRUE(all.equal(w, rep(1 / length(w), length(w))))
-    }, logical(1)))) "equal" else "user-supplied",
-    within_firm_weights = weights,
     ownership_map = data.frame(product_id = product_id, firm_id = firm_id),
     price_rule = price_info$rule,
     price_level = price_level,

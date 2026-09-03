@@ -8,21 +8,18 @@ Dirichlet and Beta draws are controlled experimental-design devices.
 
 ## Share construction
 
-For `n_firms = F`, the vector `dirichlet_alpha` must have length `F`, be finite,
-and be strictly positive. The inside relative shares are drawn as
+For `n_firms = F` and `n_products = J`, the vector `dirichlet_alpha` must have
+length `F * J`, be finite, and be strictly positive. The inside relative
+product shares are drawn from `Dirichlet(dirichlet_alpha)`, with products
+ordered in firm blocks.
 
-\[
-(\tilde S_1,\ldots,\tilde S_F)\sim Dirichlet(\eta_1,\ldots,\eta_F).
-\]
+The reference share is independently drawn as `s0 ~ Beta(a0, b0)`, and the
+inside product shares are `(1 - s0) * relative_product_shares`. Firm shares
+are the sums of the product shares owned by each firm. Thus all product
+shares, including the reference product, sum to one. A symmetric design is
+`dirichlet_alpha = rep(a, n_firms * n_products)`; an asymmetric design uses a
+nonconstant vector.
 
-The reference share is independently drawn as
-
-\[
-s_0\sim Beta(a_0,b_0),
-\]
-
-and inside firm shares are `(1 - s0) * tilde_S`. Thus the product shares,
-including the reference product, sum to one.
 
 The reference product is an additional firm, so `n_firms` excludes that firm.
 This makes the reference product strategically active without treating it as
@@ -30,14 +27,11 @@ a passive Logit outside option with price zero.
 
 ## Product structure
 
-`products_per_firm` is a scalar or a length-`n_firms` positive integer vector.
-Firm shares are allocated by equal within-firm weights by default. A user may
-provide `within_firm_weights` as a list with one numeric vector per inside firm
-or as a numeric vector of total length equal to the number of inside products.
-Weights are normalized within each firm only after validation that they are
-finite and strictly positive. The allocation interface is intentionally
-simple so a future within-firm Dirichlet draw can be added without changing
-the market representation.
+All inside firms have the same number of products, controlled by the positive
+integer `n_products` (default `1`). There is no equal-within-firm allocation:
+product shares are drawn directly, and the resulting firm shares are
+aggregates. The product-level ownership matrix is constructed from the
+firm/product mapping, so multi-product ownership is explicit.
 
 ## Prices and markups
 
@@ -56,7 +50,7 @@ model adapter.
 ## Reproducibility and rejection
 
 Random generation runs under a locally preserved RNG state. The requested
-seed, distribution parameters, allocation rule, price rule, markup draw, and
+seed, distribution parameters, product count, price rule, markup draw, and
 ownership map are stored in `market$design`. `simulate_markets()` derives a
 deterministic integer seed for each replication and retains every market
 object.

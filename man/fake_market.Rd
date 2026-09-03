@@ -8,10 +8,9 @@
 fake_market(
   mode = "observed",
   n_firms = 3L,
-  dirichlet_alpha = rep(1, n_firms),
+  n_products = 1L,
+  dirichlet_alpha = rep(1, n_firms * n_products),
   outside_beta = c(2, 8),
-  products_per_firm = 1L,
-  within_firm_weights = NULL,
   prices = NULL,
   reference_price = NULL,
   price_rule = c("common", "uniform"),
@@ -32,15 +31,13 @@ synthetic_market(...)
 
 \item{n_firms}{Number of inside firms; the reference firm is additional.}
 
-\item{dirichlet_alpha}{A positive finite vector of length `n_firms`.}
+\item{n_products}{Number of products owned by each inside firm. Defaults to
+one.}
+
+\item{dirichlet_alpha}{A positive finite vector of length
+`n_firms * n_products`.}
 
 \item{outside_beta}{A positive finite length-two vector of Beta shapes.}
-
-\item{products_per_firm}{A positive scalar recycled across firms or a
-positive vector of length `n_firms`.}
-
-\item{within_firm_weights}{A list with one positive vector per firm, or a
-positive vector over all inside products. Defaults to equal allocation.}
 
 \item{prices}{Optional positive prices for inside products or all products.}
 
@@ -83,4 +80,10 @@ supplied portable primitives as truth for a downstream economic adapter.
 \details{
 `n_firms` counts inside firms. The active reference product is an additional
 one-product firm and is included in the ownership matrix.
+
+All inside firms have the same number of products, controlled by
+`n_products`. The Dirichlet draw is at the product level, so the vector
+`dirichlet_alpha` has one element for each inside product. Firm shares are
+the sums of their product shares; there is no equal-within-firm allocation
+step.
 }

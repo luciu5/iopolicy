@@ -14,9 +14,9 @@ library(iopolicy)
 market <- fake_market(
   mode = "observed",
   n_firms = 2,
-  dirichlet_alpha = c(2, 5),
+  n_products = 2,
+  dirichlet_alpha = c(2, 5, 1, 3),
   outside_beta = c(2, 8),
-  products_per_firm = c(2, 1),
   seed = 42
 )
 
@@ -24,10 +24,12 @@ market$products
 market$design$seed
 ```
 
-`n_firms` counts inside firms. The reference product is an additional
-one-product firm and remains in the product-level ownership matrix. Its price
-is real and positive; normalization is applied only to its mean utility by an
-economic adapter.
+`n_firms` counts inside firms. `n_products` is the common number of products
+owned by each inside firm, and the Dirichlet draw is over all inside products
+(`n_firms * n_products`). Firm shares are aggregates of those product shares.
+The reference product is an additional one-product firm and remains in the
+product-level ownership matrix. Its price is real and positive; normalization
+is applied only to its mean utility by an economic adapter.
 
 The `mode = "observed"` route draws shares, prices, and one observed
 reference-product level markup. It does not infer an economic primitive in the

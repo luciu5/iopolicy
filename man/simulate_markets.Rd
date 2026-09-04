@@ -9,6 +9,7 @@ simulate_markets(
   generator = fake_market,
   seed = NULL,
   max_attempts = 1L,
+  realizer = NULL,
   ...
 )
 }
@@ -20,6 +21,10 @@ simulate_markets(
 \item{seed}{Optional base integer seed.}
 
 \item{max_attempts}{Maximum attempts per requested replication.}
+
+\item{realizer}{Optional model-specific function applied to each generated
+market. This is the hook for a downstream economic package to use a
+demand/supply specification and recover or construct structural objects.}
 
 \item{...}{Arguments passed to `generator`; `seed` is supplied by this
 function and must not be included here.}

@@ -7,3 +7,6 @@
 * `fake_market()` now takes a common `n_products` count for all inside firms
   and draws `dirichlet_alpha` directly over inside products. Firm shares are
   aggregates rather than equal within-firm allocations.
+* Model-aware synthetic-market entry points now belong to `antitrust` and
+  `trade`, where the selected package's calibration/specification and
+  equilibrium methods determine markups, costs, and demand parameters.

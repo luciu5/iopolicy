@@ -16,6 +16,7 @@ fake_market(
   price_rule = c("common", "uniform"),
   price_level = 100,
   price_range = c(50, 150),
+  outside_margin = NULL,
   observed_markup = NULL,
   reference_markup = NULL,
   markup_range = c(0, 100),
@@ -50,11 +51,13 @@ supplied.}
 
 \item{price_range}{Two positive endpoints for the uniform price rule.}
 
-\item{observed_markup}{Optional reference-product level markup in observed
-mode. If omitted it is drawn from the open numerical implementation of
-`U(0, 100)`.}
+\item{outside_margin}{Optional observed reference-product level margin in
+observed mode. If omitted it is drawn from the open numerical
+implementation of `U(0, 100)`.}
 
-\item{reference_markup}{Alias for `observed_markup`.}
+\item{observed_markup}{Backward-compatible alias for `outside_margin`.}
+
+\item{reference_markup}{Backward-compatible alias for `outside_margin`.}
 
 \item{markup_range}{Two endpoints for the observed markup draw.}
 

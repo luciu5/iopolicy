@@ -33,7 +33,7 @@ product shares are drawn directly, and the resulting firm shares are
 aggregates. The product-level ownership matrix is constructed from the
 firm/product mapping, so multi-product ownership is explicit.
 
-## Prices and markups
+## Prices and markups in the neutral design
 
 Prices are positive levels. Supplying `prices` is the most direct route. If
 omitted, `price_rule = "common"` uses `price_level` for every product and
@@ -42,10 +42,18 @@ mode, `observed_markup` is a level markup `p_r - c_r`, drawn from the open
 numerical implementation of `U(0, 100)` unless supplied. It is not a
 proportional margin in `[0, 1]`.
 
-The common package does not turn observed information into a structural
-parameter. A downstream economic adapter owns that inversion. Likewise,
-known primitives are stored as truth and are interpreted only by the selected
-model adapter.
+The neutral `iopolicy::fake_market()` object can retain experimental price and
+markup fields for compatibility and design-only work, but it does not claim
+that independently drawn values are an equilibrium. The model-aware
+`antitrust::synthetic_market()` and `trade::synthetic_market()` entry points
+use a positive reference-product price and one reference level markup with the
+selected package's supply model. They recover all remaining markups, costs,
+and demand parameters through the package's own economic methods.
+
+The reference markup is a level difference `p_r - c_r`, not a proportional
+margin. The conceptual draw is `U(0, 100)`; the implementation uses an open
+numerical interval to avoid exact zero. A draw that implies an invalid cost or
+model domain is rejected by the model-aware function.
 
 ## Reproducibility and rejection
 

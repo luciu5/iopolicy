@@ -121,10 +121,11 @@
 #'   supplied.
 #' @param price_level Common positive price and default reference price.
 #' @param price_range Two positive endpoints for the uniform price rule.
-#' @param observed_markup Optional reference-product level markup in observed
-#'   mode. If omitted it is drawn from the open numerical implementation of
-#'   `U(0, 100)`.
-#' @param reference_markup Alias for `observed_markup`.
+#' @param outside_margin Optional observed reference-product level margin in
+#'   observed mode. If omitted it is drawn from the open numerical
+#'   implementation of `U(0, 100)`.
+#' @param observed_markup Backward-compatible alias for `outside_margin`.
+#' @param reference_markup Backward-compatible alias for `outside_margin`.
 #' @param markup_range Two endpoints for the observed markup draw.
 #' @param parameters A list of model-specific known primitives in primitives
 #'   mode, such as `list(alpha = -1)`.
@@ -144,6 +145,7 @@ fake_market <- function(
     price_rule = c("common", "uniform"),
     price_level = 100,
     price_range = c(50, 150),
+    outside_margin = NULL,
     observed_markup = NULL,
     reference_markup = NULL,
     markup_range = c(0, 100),
@@ -191,8 +193,17 @@ fake_market <- function(
     stop("'parameters' must contain the known structural primitives in primitives mode")
   }
   if (mode == "primitives" &&
-      (!is.null(observed_markup) || !is.null(reference_markup))) {
-    stop("observed markup arguments are only valid in observed mode")
+      (!is.null(outside_margin) || !is.null(observed_markup) ||
+       !is.null(reference_markup))) {
+    stop("outside margin arguments are only valid in observed mode")
+  }
+  if (!is.null(outside_margin) && !is.null(observed_markup) &&
+      !isTRUE(all.equal(outside_margin, observed_markup))) {
+    stop("'outside_margin' conflicts with 'observed_markup'")
+  }
+  if (!is.null(outside_margin) && !is.null(reference_markup) &&
+      !isTRUE(all.equal(outside_margin, reference_markup))) {
+    stop("'outside_margin' conflicts with 'reference_markup'")
   }
   if (!is.null(reference_markup)) {
     if (!is.null(observed_markup) &&
@@ -201,10 +212,11 @@ fake_market <- function(
     }
     observed_markup <- reference_markup
   }
+  if (!is.null(outside_margin)) observed_markup <- outside_margin
   if (!is.null(observed_markup) &&
       (length(observed_markup) != 1L || !is.finite(observed_markup) ||
        observed_markup <= markup_range[1] || observed_markup >= markup_range[2])) {
-    stop("'observed_markup' must lie strictly inside 'markup_range'")
+    stop("'outside_margin' must lie strictly inside 'markup_range'")
   }
 
   rng <- .iopolicy_begin_rng(seed)
@@ -265,6 +277,7 @@ fake_market <- function(
     cost = rep(NA_real_, n_total_products),
     markup = rep(NA_real_, n_total_products),
     observed_markup = c(rep(NA_real_, n_inside), observed_markup_product),
+    outside_margin = c(rep(NA_real_, n_inside), observed_markup_product),
     reference_product = product_id == reference_product,
     stringsAsFactors = FALSE
   )
@@ -297,6 +310,7 @@ fake_market <- function(
     reference_price = unname(price_values[reference_product]),
     markup_rule = markup_rule,
     markup_range = unname(markup_range),
+    outside_margin = observed_markup,
     observed_reference_markup = observed_markup,
     parameters = parameters
   )
@@ -308,6 +322,7 @@ fake_market <- function(
     reference_product = reference_product,
     reference_share = unname(outside_share),
     reference_price = unname(price_values[reference_product]),
+    outside_margin = observed_markup,
     reference_markup = observed_markup
   )
   truth <- if (mode == "primitives") parameters else list()

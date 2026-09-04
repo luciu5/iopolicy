@@ -13,12 +13,15 @@
 #' @param generator A function such as [fake_market].
 #' @param seed Optional base integer seed.
 #' @param max_attempts Maximum attempts per requested replication.
+#' @param realizer Optional model-specific function applied to each generated
+#'   market. This is the hook for a downstream economic package to use a
+#'   demand/supply specification and recover or construct structural objects.
 #' @param ... Arguments passed to `generator`; `seed` is supplied by this
 #'   function and must not be included here.
 #' @return A list with `markets`, `seeds`, and rejection `diagnostics`.
 #' @export
 simulate_markets <- function(n, generator = fake_market, seed = NULL,
-                             max_attempts = 1L, ...) {
+                             max_attempts = 1L, realizer = NULL, ...) {
   .iopolicy_assert_scalar(n, "n", integer = TRUE)
   .iopolicy_assert_scalar(max_attempts, "max_attempts", integer = TRUE)
   n <- as.integer(n)
@@ -26,6 +29,9 @@ simulate_markets <- function(n, generator = fake_market, seed = NULL,
   if (n < 1L) stop("'n' must be at least one")
   if (max_attempts < 1L) stop("'max_attempts' must be at least one")
   if (!is.function(generator)) stop("'generator' must be a function")
+  if (!is.null(realizer) && !is.function(realizer)) {
+    stop("'realizer' must be NULL or a function")
+  }
 
   rng <- .iopolicy_begin_rng(seed)
   on.exit(.iopolicy_restore_rng(rng$had_seed, rng$old_seed), add = TRUE)
@@ -40,10 +46,10 @@ simulate_markets <- function(n, generator = fake_market, seed = NULL,
       attempt_index <- (i - 1L) * max_attempts + attempt
       draw_seed <- .iopolicy_derived_seed(base_seed, attempt_index)
       used_seeds[[i]] <- draw_seed
-      result <- tryCatch(
-        do.call(generator, c(list(seed = draw_seed), list(...))),
-        error = function(e) e
-      )
+      result <- tryCatch({
+        generated <- do.call(generator, c(list(seed = draw_seed), list(...)))
+        if (is.null(realizer)) generated else realizer(generated)
+      }, error = function(e) e)
       if (!inherits(result, "error")) {
         markets[[i]] <- result
         break
@@ -65,7 +71,8 @@ simulate_markets <- function(n, generator = fake_market, seed = NULL,
         rejection_rate = mean(rejected),
         rejection_reasons = rejection_reasons,
         base_seed = base_seed,
-        max_attempts = max_attempts
+        max_attempts = max_attempts,
+        realized = !is.null(realizer)
       )
     ),
     class = c("SyntheticMarketBatch", "list")

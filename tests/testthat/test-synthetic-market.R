@@ -110,7 +110,7 @@ test_that("reference product is active, priced, and separately owned", {
                "mean utility only; reference price is real")
 })
 
-test_that("prices and open-boundary level markup conventions are explicit", {
+test_that("prices and open-boundary outside-margin conventions are explicit", {
   supplied <- fake_market(n_firms = 2, n_products = 2,
                           prices = c(10, 20, 30, 40), reference_price = 50,
                           seed = 5)
@@ -128,8 +128,20 @@ test_that("prices and open-boundary level markup conventions are explicit", {
   expect_true(markup > 0 && markup < 100)
   expect_equal(market$metadata$units$markup, "price level")
   expect_equal(market$design$markup_rule, "uniform-open-U(0,100)")
+  expect_equal(market$observed$outside_margin, markup)
+  expect_equal(market$design$outside_margin, markup)
   expect_equal(market$products$observed_markup[
     market$design$reference_product], markup)
+  expect_equal(market$products$outside_margin[
+    market$design$reference_product], markup)
+  supplied_margin <- fake_market(n_firms = 2, outside_margin = 20, seed = 5)
+  expect_equal(supplied_margin$observed$outside_margin, 20)
+  expect_equal(supplied_margin$observed$reference_markup, 20)
+  expect_error(
+    fake_market(mode = "primitives", parameters = list(alpha = -1),
+                outside_margin = 20),
+    "outside margin.*only valid"
+  )
   expect_equal(fake_market(mode = "observed_information", seed = 5)$design$mode,
                "observed")
   expect_equal(fake_market(mode = "known_primitives",
@@ -154,4 +166,11 @@ test_that("RNG state is preserved and Monte Carlo seeds are deterministic", {
   expect_equal(lapply(first$markets, `[[`, "shares"),
                lapply(second$markets, `[[`, "shares"))
   expect_equal(length(first$markets), 3)
+
+  realized <- simulate_markets(
+    2, fake_market, seed = 12,
+    realizer = identity, n_firms = 2, dirichlet_alpha = c(1, 3)
+  )
+  expect_true(realized$diagnostics$realized)
+  expect_equal(realized$diagnostics$n_rejected, 0)
 })

@@ -31,11 +31,21 @@ The reference product is an additional one-product firm and remains in the
 product-level ownership matrix. Its price is real and positive; normalization
 is applied only to its mean utility by an economic adapter.
 
-The `mode = "observed"` route draws shares, prices, and one observed
-reference-product level markup. It does not infer an economic primitive in the
-common package. A model package can call `realize_market(market, spec)` to
-apply its own equations. The `mode = "primitives"` route records supplied
-portable primitives as truth for that model-specific realization.
+The `mode = "observed"` route draws the share/ownership design and records a
+reference-product markup and price as design inputs. It does not infer an
+economic primitive in the common package. The model-aware entry points live in
+the economic packages: `antitrust::synthetic_market()` returns an
+`AntitrustFit`, and `trade::synthetic_market()` returns a `TradeFit`. They call
+their own `calibrate()`/`specify()` paths and can therefore be passed directly
+to their native `simulate()` methods. The generic `realize_market()` hook is
+retained only as a neutral extension point; it is not the primary generation
+workflow.
+
+For model-aware generation, prices are not independently drawn. The positive
+reference-product price, all product shares, ownership, selected demand/supply
+model, and one reference level markup determine the model-consistent baseline.
+In primitives mode, supplied structural parameters are passed through the
+economic package's explicit `specify()` path.
 
 These distributions are experimental-design devices, not claims about the
 empirical distribution of real markets.

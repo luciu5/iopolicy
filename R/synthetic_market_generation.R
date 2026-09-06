@@ -102,18 +102,20 @@
 #' `n_firms` counts inside firms. The active reference product is an additional
 #' one-product firm and is included in the ownership matrix.
 #'
-#' All inside firms have the same number of products, controlled by
-#' `n_products`. The Dirichlet draw is at the product level, so the vector
-#' `dirichlet_alpha` has one element for each inside product. Firm shares are
-#' the sums of their product shares; there is no equal-within-firm allocation
-#' step.
+#' `n_products` may be a scalar, in which case all inside firms have the same
+#' number of products, or a vector of length `n_firms`, in which case it gives
+#' each firm's product count. The Dirichlet draw is at the product level, so
+#' the vector `dirichlet_alpha` has one element for each inside product. Firm
+#' shares are the sums of their product shares; there is no equal-within-firm
+#' allocation step.
 #'
 #' @param mode Either `"observed"` or `"primitives"`.
 #' @param n_firms Number of inside firms; the reference firm is additional.
-#' @param n_products Number of products owned by each inside firm. Defaults to
-#'   one.
-#' @param dirichlet_alpha A positive finite vector of length
-#'   `n_firms * n_products`.
+#' @param n_products Number of products owned by each inside firm. A scalar is
+#'   recycled across firms; a vector must have length `n_firms`. Defaults to
+#'   one product per firm.
+#' @param dirichlet_alpha A positive finite vector with one element for each
+#'   inside product. If omitted, all product-level Dirichlet shapes equal one.
 #' @param outside_beta A positive finite length-two vector of Beta shapes.
 #' @param prices Optional positive prices for inside products or all products.
 #' @param reference_price Price appended when only inside prices are supplied.
@@ -138,7 +140,7 @@ fake_market <- function(
     mode = "observed",
     n_firms = 3L,
     n_products = 1L,
-    dirichlet_alpha = rep(1, n_firms * n_products),
+    dirichlet_alpha = NULL,
     outside_beta = c(2, 8),
     prices = NULL,
     reference_price = NULL,
@@ -162,15 +164,32 @@ fake_market <- function(
   .iopolicy_assert_scalar(n_firms, "n_firms", integer = TRUE)
   n_firms <- as.integer(n_firms)
   if (n_firms < 1L) stop("'n_firms' must be at least one")
-  n_products <- as.numeric(n_products)
-  .iopolicy_assert_scalar(n_products, "n_products", integer = TRUE)
-  n_products <- as.integer(n_products)
-  if (n_products < 1L) stop("'n_products' must be at least one")
-  if (n_firms > (2147483647 - 1) / n_products) {
-    stop("'n_firms' * 'n_products' is too large")
+  n_products_input <- as.numeric(n_products)
+  if (length(n_products_input) != 1L &&
+      length(n_products_input) != n_firms) {
+    stop("'n_products' must be a positive integer scalar or a vector of length n_firms")
   }
-  n_inside <- as.integer(n_firms * n_products)
+  if (any(!is.finite(n_products_input)) ||
+      any(n_products_input != as.integer(n_products_input)) ||
+      any(n_products_input < 1)) {
+    stop("'n_products' must contain positive integers")
+  }
+  products_per_firm <- if (length(n_products_input) == 1L) {
+    rep(as.integer(n_products_input), n_firms)
+  } else {
+    as.integer(n_products_input)
+  }
+  if (sum(products_per_firm) > 2147483646) {
+    stop("the number of inside products is too large")
+  }
+  n_inside <- as.integer(sum(products_per_firm))
   n_total_products <- n_inside + 1L
+  n_products_design <- if (length(n_products_input) == 1L) {
+    as.integer(n_products_input)
+  } else {
+    products_per_firm
+  }
+  if (is.null(dirichlet_alpha)) dirichlet_alpha <- rep(1, n_inside)
   .iopolicy_validate_positive_vector(
     dirichlet_alpha, "dirichlet_alpha", n_inside
   )
@@ -226,7 +245,7 @@ fake_market <- function(
   relative_product_shares <- relative_product_shares / sum(relative_product_shares)
   outside_share <- rbeta(1L, shape1 = outside_beta[1], shape2 = outside_beta[2])
   product_shares_inside <- (1 - outside_share) * relative_product_shares
-  inside_firm_id <- rep(seq_len(n_firms), each = n_products)
+  inside_firm_id <- rep(seq_len(n_firms), times = products_per_firm)
   firm_shares <- vapply(
     seq_len(n_firms),
     function(firm) sum(product_shares_inside[inside_firm_id == firm]),
@@ -261,7 +280,7 @@ fake_market <- function(
   product_id <- seq_len(n_total_products)
   reference_product <- n_total_products
   firm_share_by_product <- c(
-    rep(firm_shares, each = n_products),
+    rep(firm_shares, times = products_per_firm),
     outside_share
   )
   reference_firm <- n_firms + 1L
@@ -285,7 +304,7 @@ fake_market <- function(
     firm_id = seq_len(reference_firm),
     reference_firm = seq_len(reference_firm) == reference_firm,
     firm_share = c(firm_shares, outside_share),
-    n_products = c(rep(n_products, n_firms), 1L),
+    n_products = c(products_per_firm, 1L),
     stringsAsFactors = FALSE
   )
 
@@ -294,7 +313,8 @@ fake_market <- function(
     seed = rng$seed,
     n_firms = n_firms,
     n_inside_products = n_inside,
-    n_products = n_products,
+    n_products = n_products_design,
+    products_per_firm = unname(products_per_firm),
     n_total_products = n_total_products,
     reference_product = reference_product,
     reference_firm = reference_firm,

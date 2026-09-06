@@ -45,25 +45,41 @@ test_that("symmetric and asymmetric product-level Dirichlet designs are reproduc
   asymmetric <- fake_market(
     n_firms = 2, n_products = 2, dirichlet_alpha = c(1, 2, 3, 8), seed = 123
   )
+  different_seed <- fake_market(
+    n_firms = 2, n_products = 2, dirichlet_alpha = rep(2, 4), seed = 124
+  )
 
   expect_equal(symmetric_a$shares, symmetric_b$shares)
   expect_equal(symmetric_a$prices, symmetric_b$prices)
   expect_equal(symmetric_a$observed$reference_markup,
                symmetric_b$observed$reference_markup)
+  expect_false(isTRUE(all.equal(symmetric_a$shares, different_seed$shares)))
   expect_false(isTRUE(all.equal(symmetric_a$shares, asymmetric$shares)))
 })
 
-test_that("n_products is a common positive integer for inside firms", {
+test_that("n_products supports common and heterogeneous product counts", {
   expect_equal(fake_market(n_firms = 2, seed = 1)$design$n_products, 1)
   expect_error(fake_market(n_products = 0), "n_products")
   expect_error(fake_market(n_products = 1.5), "n_products")
+  expect_error(fake_market(n_firms = 3, n_products = c(1, 2)), "n_products")
 
   market <- fake_market(n_firms = 3, n_products = 2, seed = 1)
   expect_equal(market$design$n_products, 2)
+  expect_equal(market$design$products_per_firm, c(2, 2, 2))
   expect_equal(market$design$n_inside_products, 6)
   expect_equal(market$design$n_total_products, 7)
   expect_equal(market$firms$n_products, c(2, 2, 2, 1))
   expect_equal(nrow(market$products), 7)
+
+  heterogeneous <- fake_market(
+    n_firms = 3, n_products = c(1, 2, 3), seed = 1
+  )
+  expect_equal(heterogeneous$design$n_products, c(1, 2, 3))
+  expect_equal(heterogeneous$design$products_per_firm, c(1, 2, 3))
+  expect_equal(heterogeneous$design$n_inside_products, 6)
+  expect_equal(heterogeneous$firms$n_products, c(1, 2, 3, 1))
+  expect_equal(heterogeneous$products$firm_id, c(1, 2, 2, 3, 3, 3, 4))
+  expect_equal(dim(heterogeneous$ownership), c(7, 7))
 })
 
 test_that("outside share Beta parameters are explicit and validated", {
